@@ -20,10 +20,10 @@ from typing import Sequence, Optional, Union, Callable
 import numpy as np
 import pandas as pd
 
-from .backtesting import Strategy
-from ._plotting import plot_heatmaps as _plot_heatmaps
-from ._stats import compute_stats as _compute_stats
-from ._util import _Array, _as_str
+from backtesting import Strategy
+from _plotting import plot_heatmaps as _plot_heatmaps
+from _stats import compute_stats as _compute_stats
+from _util import _Array, _as_str
 
 __pdoc__ = {}
 
@@ -286,7 +286,7 @@ http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
         series = series.s
 
     if agg is None:
-        agg = OHLCV_AGG.get(getattr(series, 'name', ''), 'last')
+        agg = OHLCV_AGG.get(getattr(series, 'name', None), 'last')
         if isinstance(series, pd.DataFrame):
             agg = {column: OHLCV_AGG.get(column, 'last')
                    for column in series.columns}

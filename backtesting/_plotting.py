@@ -38,7 +38,7 @@ from bokeh.layouts import gridplot
 from bokeh.palettes import Category10
 from bokeh.transform import factor_cmap
 
-from backtesting._util import _data_period, _as_list, _Indicator
+from _util import _data_period, _as_list, _Indicator
 
 with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
           encoding='utf-8') as _f:
@@ -194,7 +194,7 @@ def plot(*, results: pd.Series,
     plot_pl = plot_pl and not trades.empty
     is_datetime_index = isinstance(df.index, pd.DatetimeIndex)
 
-    from .lib import OHLCV_AGG
+    from lib import OHLCV_AGG
     # ohlc df may contain many columns. We're only interested in, and pass on to Bokeh, these
     df = df[list(OHLCV_AGG.keys())].copy(deep=False)
 

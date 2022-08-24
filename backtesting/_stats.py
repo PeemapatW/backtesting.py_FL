@@ -2,8 +2,9 @@ from typing import List, TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 
-from ._util import _data_period
+from _util import _data_period
 
 if TYPE_CHECKING:
     from .backtesting import Strategy, Trade
@@ -38,9 +39,10 @@ def compute_stats(
         ohlc_data: pd.DataFrame,
         strategy_instance: 'Strategy',
         risk_free_rate: float = 0,
+        alpha : float = 0.05
 ) -> pd.Series:
     assert -1 < risk_free_rate < 1
-
+    
     index = ohlc_data.index
     dd = 1 - equity / np.maximum.accumulate(equity)
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
@@ -68,8 +70,15 @@ def compute_stats(
         })
         trades_df['Duration'] = trades_df['ExitTime'] - trades_df['EntryTime']
     del trades
+    
+    #print(trades_df)
+    #print(equity_df)
+
 
     pl = trades_df['PnL']
+    #pl.hist()
+    #ks_statistic, p_value = stats.kstest(pl, 'norm')
+    #print(ks_statistic, p_value)
     returns = trades_df['ReturnPct']
     durations = trades_df['Duration']
 
@@ -94,6 +103,9 @@ def compute_stats(
     s.loc['Return [%]'] = (equity[-1] - equity[0]) / equity[0] * 100
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
+
+    monthly_close = ohlc_data[ohlc_data.index.day == 1].Close.values
+    s.loc['DCA Return [%]'] = (np.sum([1/close for close in monthly_close])*c[-1]-len(monthly_close))/len(monthly_close)*100  # dca return
 
     gmean_day_return: float = 0
     day_returns = np.array(np.nan)
@@ -124,10 +136,20 @@ def compute_stats(
     s.loc['Calmar Ratio'] = np.clip(annualized_return / (-max_dd or np.nan), 0, np.inf)
     s.loc['Max. Drawdown [%]'] = max_dd * 100
     s.loc['Avg. Drawdown [%]'] = -dd_peaks.mean() * 100
-    s.loc['Max. Drawdown Duration'] = _round_timedelta(dd_dur.max())
+    s.loc['Max. Drawdown Duration'] = _round_timedelta(dd_dur.max())  
     s.loc['Avg. Drawdown Duration'] = _round_timedelta(dd_dur.mean())
     s.loc['# Trades'] = n_trades = len(trades_df)
     s.loc['Win Rate [%]'] = np.nan if not n_trades else (pl > 0).sum() / n_trades * 100  # noqa: E501
+    s.loc['p-value for Win Rate > 50%'] = np.nan if not n_trades else stats.binomtest((pl > 0).sum(),n_trades,p=0.5,alternative='greater').pvalue
+    s.loc['Win Rate > 50%'] = np.nan if not n_trades else s.loc['p-value for Win Rate > 50%'] < alpha
+    s.loc['mean P&L'] = pl.mean()
+    if len(pl) > 1:
+      t_pnl, p_pnl = stats.ttest_1samp(pl, 0,alternative='greater')    
+    else:
+      t_pnl, p_pnl = np.nan, np.nan
+    s.loc['t_score for mean P&L > 0'] = t_pnl
+    s.loc['p-value for mean P&L > 0'] = p_pnl
+    s.loc['mean P&L > 0'] = s.loc['p-value for mean P&L > 0'] < alpha
     s.loc['Best Trade [%]'] = returns.max() * 100
     s.loc['Worst Trade [%]'] = returns.min() * 100
     mean_return = geometric_mean(returns)

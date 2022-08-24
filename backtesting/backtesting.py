@@ -29,9 +29,9 @@ except ImportError:
     def _tqdm(seq, **_):
         return seq
 
-from ._plotting import plot
-from ._stats import compute_stats
-from ._util import _as_str, _Indicator, _Data, try_
+from _plotting import plot
+from _stats import compute_stats
+from _util import _as_str, _Indicator, _Data, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -49,7 +49,7 @@ class Strategy(metaclass=ABCMeta):
     `backtesting.backtesting.Strategy.next` to define
     your own strategy.
     """
-    def __init__(self, broker, data, params):
+    def __init__(self, broker, data, params, **kwargs):
         self._indicators = []
         self._broker: _Broker = broker
         self._data: _Data = data
@@ -1201,6 +1201,7 @@ class Backtest:
                  return_heatmap: bool = False,
                  return_optimization: bool = False,
                  random_state: int = None,
+                 verbose : bool = False,
                  **kwargs) -> Union[pd.Series,
                                     Tuple[pd.Series, pd.Series],
                                     Tuple[pd.Series, pd.Series, dict]]:
@@ -1365,19 +1366,31 @@ class Backtest:
                     with ProcessPoolExecutor() as executor:
                         futures = [executor.submit(Backtest._mp_task, backtest_uuid, i)
                                    for i in range(len(param_batches))]
-                        for future in _tqdm(as_completed(futures), total=len(futures),
-                                            desc='Backtest.optimize'):
-                            batch_index, values = future.result()
-                            for value, params in zip(values, param_batches[batch_index]):
-                                heatmap[tuple(params.values())] = value
+                        if verbose:
+                          for future in _tqdm(as_completed(futures), total=len(futures),
+                                              desc='Backtest.optimize'):
+                              batch_index, values = future.result()
+                              for value, params in zip(values, param_batches[batch_index]):
+                                  heatmap[tuple(params.values())] = value
+                        else:
+                          for future in as_completed(futures):
+                              batch_index, values = future.result()
+                              for value, params in zip(values, param_batches[batch_index]):
+                                  heatmap[tuple(params.values())] = value
                 else:
                     if os.name == 'posix':
                         warnings.warn("For multiprocessing support in `Backtest.optimize()` "
                                       "set multiprocessing start method to 'fork'.")
-                    for batch_index in _tqdm(range(len(param_batches))):
-                        _, values = Backtest._mp_task(backtest_uuid, batch_index)
-                        for value, params in zip(values, param_batches[batch_index]):
-                            heatmap[tuple(params.values())] = value
+                    if verbose:
+                      for batch_index in _tqdm(range(len(param_batches))):
+                          _, values = Backtest._mp_task(backtest_uuid, batch_index)
+                          for value, params in zip(values, param_batches[batch_index]):
+                              heatmap[tuple(params.values())] = value
+                    else:
+                      for batch_index in range(len(param_batches)):
+                          _, values = Backtest._mp_task(backtest_uuid, batch_index)
+                          for value, params in zip(values, param_batches[batch_index]):
+                              heatmap[tuple(params.values())] = value
             finally:
                 del Backtest._mp_backtests[backtest_uuid]
 
@@ -1434,7 +1447,10 @@ class Backtest:
 
             # np.inf/np.nan breaks sklearn, np.finfo(float).max breaks skopt.plots.plot_objective
             INVALID = 1e300
-            progress = iter(_tqdm(repeat(None), total=max_tries, desc='Backtest.optimize'))
+            if verbose:
+              progress = iter(_tqdm(repeat(None), total=max_tries, desc='Backtest.optimize'))
+            else:
+              progress = iter(repeat(None))
 
             @use_named_args(dimensions=dimensions)
             def objective_function(**params):
