@@ -43,10 +43,14 @@ def opt_param_dict_to_eval_str(param_dict):
   return hyper_param[:-1]
 
 def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',test_interval=0,resolution='1d',plot=True,optimize=False):
-  if not isinstance(start_date,str) and  not isinstance(end_date,str):
-    raise ValueError("input date must be in str dd/mm/yy")
+  if not (isinstance(start_date,str) or isinstance(start_date,datetime)) and not (isinstance(end_date,str) or isinstance(end_date,datetime)):
+    raise ValueError("input date must be in str dd/mm/yy or in datetime format")
   if end_date == '' and test_interval == 0:
     raise ValueError("must be atleast input end_date or test_interval")
+  if isinstance(start_date,datetime):
+    start_date = start_date.strftime('%m/%d/%y')
+  if isinstance(end_date,datetime):
+    end_date = end_date.strftime('%m/%d/%y')
   if test_interval > 0:
     resolustion_timestamp_dict = {'1d':86400}
     end_date = datetime.fromtimestamp(mktime(datetime.strptime(start_date, '%m/%d/%y').timetuple()) + test_interval*resolustion_timestamp_dict[resolution]).strftime('%m/%d/%y')

@@ -105,7 +105,11 @@ def compute_stats(
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
 
     monthly_close = ohlc_data[ohlc_data.index.day == 1].Close.values
+    initial_equity = equity[0]
+    dcapm = initial_equity/len(monthly_close)
+    ### NEED TO IMPROVE FOR OTHER ASSET THAT CANNOT TRADE EVERYDAY ####
     s.loc['DCA Return [%]'] = (np.sum([1/close for close in monthly_close])*c[-1]-len(monthly_close))/len(monthly_close)*100  # dca return
+    s.loc['DCA Return [%]_fix'] = (np.sum([dcapm/close for close in monthly_close])*c[-1]-initial_equity)/initial_equity*100  # dca return
 
     gmean_day_return: float = 0
     day_returns = np.array(np.nan)
