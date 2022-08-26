@@ -2,6 +2,7 @@ from datetime import datetime
 from time import mktime
 import inspect
 import pandas as pd
+import numpy as np
 from backtesting import Backtest, Strategy
 from yahoo_fin.stock_info import get_data
 

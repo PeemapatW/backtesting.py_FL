@@ -103,6 +103,8 @@ def compute_stats(
     s.loc['Return [%]'] = (equity[-1] - equity[0]) / equity[0] * 100
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
+    o = ohlc_data.Open.values
+    s.loc['Buy & Hold Return [%] with open'] = (c[-1] - o[0]) / o[0] * 100  # long-only return
 
     monthly_close = ohlc_data[ohlc_data.index.day == 1].Close.values
     #initial_equity = equity[0]

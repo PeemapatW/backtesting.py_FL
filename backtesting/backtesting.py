@@ -1190,7 +1190,20 @@ class Backtest:
                 risk_free_rate=0.0,
                 strategy_instance=strategy,
             )
-
+        trades = broker.closed_trades
+        trades_df = pd.DataFrame({
+            'Size': [t.size for t in trades],
+            'EntryBar': [t.entry_bar for t in trades],
+            'ExitBar': [t.exit_bar for t in trades],
+            'EntryPrice': [t.entry_price for t in trades],
+            'ExitPrice': [t.exit_price for t in trades],
+            'PnL': [t.pl for t in trades],
+            'ReturnPct': [t.pl_pct for t in trades],
+            'EntryTime': [t.entry_time for t in trades],
+            'ExitTime': [t.exit_time for t in trades],
+        })
+        trades_df['Duration'] = trades_df['ExitTime'] - trades_df['EntryTime']
+        self._trade_tables = trades_df
         return self._results
 
     def optimize(self, *,

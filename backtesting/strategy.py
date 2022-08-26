@@ -308,7 +308,145 @@ class BarUpDown(Strategy):
       self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
+
+class ChannelBreakOut(Strategy):
+  name = "ChannelBreakOut"
+  param_size = 1-1e-10
+  param_length = 5
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    pass
+    
+  def buy_condition(self):
+    high = self.data.High
+    upbound = np.max([high[-(self.param_length+1):-1]])
+    return upbound < high[-1]
+    
+  def sell_condition(self):
+    low = self.data.Low
+    downbound = np.min([low[-(self.param_length+1):-1]])
+    return downbound > low[-1]
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
       
+class InsideBar(Strategy):
+  name = "InsideBar"
+  param_size = 1-1e-10
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    pass
+    
+  def buy_condition(self):
+    return self.data.High[-1] < self.data.High[-2] and self.data.Low[-1] > self.data.Low[-2] and self.data.Close[-1] > self.data.Open[-1]
+    
+  def sell_condition(self):
+    return self.data.High[-1] < self.data.High[-2] and self.data.Low[-1] > self.data.Low[-2] and self.data.Close[-1] < self.data.Open[-1]
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+      
+class Momentum(Strategy):
+  name = "InsideBar"
+  param_size = 1-1e-10
+  param_length = 12
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    close = self.data.Close
+    self.mom0 = self.I(ta.MOM,close,self.param_length)
+    self.mom1 = self.I(ta.MOM,self.mom0, 1)
+    return self.mom0, self.mom1
+    
+  def buy_condition(self):
+    return self.mom0 > 0 and self.mom1 > 0
+    
+  def sell_condition(self):
+    return self.mom0 < 0 and self.mom1 < 0
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    else:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+    else:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.long_pos = False
+      self.short_pos = True
+      
+class ConsecutiveUpDown(Strategy):
+  name = "ConsecutiveUpDown"
+  param_size = 1-1e-10
+  param_barsup = 3
+  param_barsup = 3
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    pass
+    
+  def buy_condition(self):
+    close = self.data.Close
+    try:
+      consup = np.all(close[-(self.param_barsup+1):-1] < close[-self.param_barsup:])
+    except:
+      consup = False #in case of first step of iteration
+    return consup
+    
+  def sell_condition(self):
+    close = self.data.Close
+    try:
+      consdown = np.all(close[-(self.param_barsup+1):-1] > close[-self.param_barsup:])
+    except:
+      consdown = False
+    return consdown
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+      
+
 class BolingerBands(Strategy):
   name = 'BolingerBands'
   param_size = 1-1e-10
