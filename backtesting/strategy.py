@@ -2,10 +2,19 @@ import talib as ta
 from backtesting import Backtest, Strategy
 from lib import crossover, cross
 from util import *
+import numpy as np
 
 def name2strategy(name_list):
-  name2strategy_dict = {'MACD_Cross':MACD_Cross,'SMA_Cross':SMA_Cross,'EMA_Cross':EMA_Cross,'DEMA_Cross':DEMA_Cross,'RSI':RSI,'BBand_UD':BBand_UD}
+  name2strategy_dict = {'MACD_Cross':MACD_Cross,'SMA_Cross':SMA_Cross,'EMA_Cross':EMA_Cross,'DEMA_Cross':DEMA_Cross,'RSI':RSI,'BolingerBands':BolingerBands}
   return [name2strategy_dict[name] for name in name_list]
+  
+def close_opposite_dir_trade(trade_list,dir):
+  for trade in trade_list:
+    if trade.size * dir <= 0: #size and dir has diff. direction
+      trade.close()
+ 
+def get_trade_num(trade_list,dir):
+  return len([1 for trade in trade_list if trade.size * dir > 0])
   
 class HODL(Strategy):
   name = 'HODL'
@@ -31,6 +40,7 @@ class DCA(Strategy):
 
 class SMA_Cross(Strategy):
   name = 'SMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
   
@@ -48,12 +58,16 @@ class SMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
       
 class EMA_Cross(Strategy):
   name = 'EMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
   
@@ -71,12 +85,16 @@ class EMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
       
 class WMA_Cross(Strategy):
   name = 'WMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
   
@@ -94,12 +112,16 @@ class WMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
       
 class DEMA_Cross(Strategy):
   name = 'DEMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
   
@@ -117,14 +139,19 @@ class DEMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
       
 class TEMA_Cross(Strategy):
   name = 'TEMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+
   
   def init(self):
     close = self.data.Close
@@ -140,12 +167,16 @@ class TEMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
       
 class TRIMA_Cross(Strategy):
   name = 'TRIMA_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
   
@@ -163,16 +194,22 @@ class TRIMA_Cross(Strategy):
   
   def next(self):
     if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
 
 class RSI(Strategy):
   name = 'RSI'
+  param_size = param_size = 1-1e-10
   param_timeperiod = 14
   param_overbought = 60
   param_oversold = 30
   param_delay = 1
+  long_pos = False
+  short_pos = False
   
   def init(self):
     close = self.data.Close
@@ -188,16 +225,25 @@ class RSI(Strategy):
     #return all([self.rsi[-i] > self.param_overbought for i in range(1,self.param_delay+1)])
   
   def next(self):
-    if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
 
 class MACD_Cross(Strategy):
   name = 'MACD_Cross'
+  param_size = 1-1e-10
   param_fastperiod = 12
-  param_slowperiod = 29
+  param_slowperiod = 26
   param_signalperiod = 9
+  long_pos = False
+  short_pos = False
   
   def init(self):
     close = self.data.Close
@@ -211,36 +257,95 @@ class MACD_Cross(Strategy):
     return crossover(self.macdsignal, self.macd)
   
   def next(self):
-    if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
       
-class BBand_UD(Strategy):
-  name = 'BBand_UD'
+class BarUpDown(Strategy):
+  name = "BarUpDown"
+  param_size = 1-1e-10
+  param_max_loss = 1
+  pre_equity = np.nan
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    pass
+    
+  def buy_condition(self):
+    return self.data.Close[-1] > self.data.Open[-1] and self.data.Open[-1] > self.data.Close[-2]
+    
+  def sell_condition(self):
+    return self.data.Close[-1] < self.data.Open[-1] and self.data.Open[-1] < self.data.Close[-2]
+  
+  def next(self):
+    if self.pre_equity != np.nan:
+      stop_loss = self.equity < self.pre_equity*(1-self.param_max_loss/100)
+      long_pos = False
+      short_pos = False
+    else:
+      stop_loss = False
+    self.pre_equity = self.equity
+    
+    if stop_loss:
+      [trade.close() for trade in self.trades]
+    
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+      
+class BolingerBands(Strategy):
+  name = 'BolingerBands'
+  param_size = 1-1e-10
   param_timeperiod = 20
   param_nbdevup = 2
   param_nbdevdn = 2
+  param_directed = 0
+  long_pos = False
+  short_pos = False
   
   def init(self):
     close = self.data.Close
     self.upperband, self.middleband, self.lowerband = self.I(ta.BBANDS,close, self.param_timeperiod, self.param_nbdevup, self.param_nbdevdn)
     return self.upperband, self.middleband, self.lowerband
-  
+
   def buy_condition(self):
-    return self.data.Close[-1] < self.lowerband[-1] and self.data.Close[-2] > self.lowerband[-2]
+    return crossover(self.data.Close,self.lowerband)
     
   def sell_condition(self):
-    return self.upperband[-1] < self.data.Close[-1] and self.upperband[-2] > self.data.Close[-2]
-  
+    return crossover(self.upperband,self.data.Close)
+
   def next(self):
-    if self.buy_condition():
-      self.buy()
-    elif self.sell_condition():
-      self.sell()
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
       
 class Intersect_Strategy(Strategy):
-  strategy_list_name = ['MACD_Cross','SMA_Cross','EMA_Cross','DEMA_Cross','RSI','BBand_UD']
+  strategy_list_name = ['MACD_Cross','SMA_Cross','EMA_Cross','DEMA_Cross','RSI','BolingerBands']
   strategy_list = name2strategy(strategy_list_name)
   exec(get_param_exec_str(strategy_list))
   
@@ -251,8 +356,8 @@ class Intersect_Strategy(Strategy):
       self.sma1 , self.sma2 = SMA_Cross.init(self)
     if 'RSI' in self.strategy_list_name:
       self.rsi = RSI.init(self)
-    if 'BBand_UD' in self.strategy_list_name:
-      self.upperband, self.middleband, self.lowerband = BBand_UD.init(self)
+    if 'BolingerBands' in self.strategy_list_name:
+      self.upperband, self.middleband, self.lowerband = BolingerBands.init(self)
 
     
   def next(self):
@@ -267,9 +372,9 @@ class Intersect_Strategy(Strategy):
     if 'RSI' in self.strategy_list_name:
       buy = buy and RSI.buy_condition(self)
       sell = sell and RSI.sell_condition(self)
-    if 'BBand_UD' in self.strategy_list_name:
-      buy = buy and BBand_UD.buy_condition(self)
-      sell = sell and BBand_UD.sell_condition(self)
+    if 'BolingerBands' in self.strategy_list_name:
+      buy = buy and BolingerBands.buy_condition(self)
+      sell = sell and BolingerBands.sell_condition(self)
       
     if buy:
       self.buy()
