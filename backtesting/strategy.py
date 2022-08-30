@@ -92,6 +92,76 @@ class EMA_Cross(Strategy):
       close_opposite_dir_trade(self.trades,dir=0)
       self.sell(size=self.param_size)
       
+class EMA_Cross_3Line(Strategy):
+  name = 'EMA_Cross_3Line'
+  param_size = 1-1e-10
+  param_period1 = 10
+  param_period2 = 20
+  param_period3 = 30
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    close = self.data.Close
+    self.ema1 = self.I(ta.EMA, close, self.param_period1)
+    self.ema2 = self.I(ta.EMA, close, self.param_period2)
+    self.ema3 = self.I(ta.EMA, close, self.param_period3)
+    return self.ema1,self.ema2,self.ema3
+  
+  def buy_condition(self):
+    return all([self.data.Close[-1] > ema[-1] for ema in [self.ema1,self.ema2,self.ema3]]) and any([crossover(self.data.Close, ema) for ema in [self.ema1,self.ema2,self.ema3]])
+    
+  def sell_condition(self):
+    return all([self.data.Close[-1] < ema[-1] for ema in [self.ema1,self.ema2,self.ema3]]) and any([crossover(ema, self.data.Close) for ema in [self.ema1,self.ema2,self.ema3]])
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+
+class EMA_Cross_4Line(Strategy):
+  name = 'EMA_Cross_4Line'
+  param_size = 1-1e-10
+  param_period1 = 10
+  param_period2 = 20
+  param_period3 = 30
+  param_period4 = 40
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    close = self.data.Close
+    self.ema1 = self.I(ta.EMA, close, self.param_period1)
+    self.ema2 = self.I(ta.EMA, close, self.param_period2)
+    self.ema3 = self.I(ta.EMA, close, self.param_period3)
+    self.ema4 = self.I(ta.EMA, close, self.param_period4)
+    return self.ema1,self.ema2,self.ema3
+  
+  def buy_condition(self):
+    return all([self.data.Close[-1] > ema[-1] for ema in [self.ema1,self.ema2,self.ema3,self.ema4]]) and any([crossover(self.data.Close, ema) for ema in [self.ema1,self.ema2,self.ema3,self.ema4]])
+    
+  def sell_condition(self):
+    return all([self.data.Close[-1] < ema[-1] for ema in [self.ema1,self.ema2,self.ema3,self.ema4]]) and any([crossover(ema, self.data.Close) for ema in [self.ema1,self.ema2,self.ema3,self.ema4]])
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+
 class WMA_Cross(Strategy):
   name = 'WMA_Cross'
   param_size = 1-1e-10
