@@ -63,7 +63,7 @@ def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',tes
     if not optimize:
       output = eval("bt.run("+param_dict_to_eval_str(param)+")")
     else:
-      output = bt.optimize(param_fastperiod = [5, 10, 15], param_slowperiod = [10, 20, 40], constraint=lambda p: p.param_fastperiod < p.param_slowperiod, return_heatmap=True)[0]
+      output = eval("bt.optimize("+opt_param_dict_to_eval_str(param)+', return_heatmap=True)[0]')
     if plot : bt.plot()
   except ValueError:
     print("input ticker is not valid or there are no data in the selected interval")

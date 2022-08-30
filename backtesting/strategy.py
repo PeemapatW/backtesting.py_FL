@@ -5,7 +5,7 @@ from util import *
 import numpy as np
 
 def name2strategy(name_list):
-  name2strategy_dict = {'MACD_Cross':MACD_Cross,'SMA_Cross':SMA_Cross,'EMA_Cross':EMA_Cross,'DEMA_Cross':DEMA_Cross,'RSI':RSI,'BolingerBands':BolingerBands}
+  name2strategy_dict = {'MACD_Cross':MACD_Cross,'SMA_Cross':SMA_Cross,'EMA_Cross':EMA_Cross,'DEMA_Cross':DEMA_Cross,'RSI':RSI,'BolingerBands':BolingerBands,'InsideBar':InsideBar,'OutsideBar':OutsideBar}
   return [name2strategy_dict[name] for name in name_list]
   
 def close_opposite_dir_trade(trade_list,dir):
@@ -368,6 +368,33 @@ class InsideBar(Strategy):
       self.long_pos = False
       self.short_pos = True
       
+class OutsideBar(Strategy):
+  name = "OutsideBar"
+  param_size = 1-1e-10
+  long_pos = False
+  short_pos = False
+  
+  def init(self):
+    pass
+    
+  def buy_condition(self):
+    return self.data.High[-1] > self.data.High[-2] and self.data.Low[-1] < self.data.Low[-2] and self.data.Close[-1] > self.data.Open[-1]
+    
+  def sell_condition(self):
+    return self.data.High[-1] > self.data.High[-2] and self.data.Low[-1] < self.data.Low[-2] and self.data.Close[-1] < self.data.Open[-1]
+  
+  def next(self):
+    if self.buy_condition() and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if self.sell_condition() and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+      
 class Momentum(Strategy):
   name = "InsideBar"
   param_size = 1-1e-10
@@ -393,19 +420,17 @@ class Momentum(Strategy):
       self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
-    else:
-      close_opposite_dir_trade(self.trades,dir=0)
-      self.long_pos = True
-      self.short_pos = False
+    #elif not self.buy_condition() and self.long_pos:
+    #  close_opposite_dir_trade(self.trades,dir=0)
+    #  self.long_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
       self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
-    else:
-      close_opposite_dir_trade(self.trades,dir=0)
-      self.long_pos = False
-      self.short_pos = True
+    #elif not self.sell_condition() and self.short_pos:
+    #  close_opposite_dir_trade(self.trades,dir=0)
+    #  self.short_pos = False
       
 class ConsecutiveUpDown(Strategy):
   name = "ConsecutiveUpDown"
@@ -472,19 +497,21 @@ class BolingerBands(Strategy):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
       if self.param_directed >= 0:
-        self.buy(size=self.param_size)
+        self.buy(size=self.param_size,stop=self.lowerband[-1])
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
       if self.param_directed <= 0:
-        self.sell(size=self.param_size)
+        self.sell(size=self.param_size,stop=self.upperband[-1])
       self.long_pos = False
       self.short_pos = True
       
-class Intersect_Strategy(Strategy):
-  strategy_list_name = ['MACD_Cross','SMA_Cross','EMA_Cross','DEMA_Cross','RSI','BolingerBands']
+class Intersect(Strategy):
+  strategy_list_name = ['EMA_Cross','SMA_Cross','RSI','BolingerBands','MACD_Cross','InsideBar','OutsideBar']
   strategy_list = name2strategy(strategy_list_name)
+  long_pos = False
+  short_pos = False
   exec(get_param_exec_str(strategy_list))
   
   def init(self):
@@ -492,6 +519,8 @@ class Intersect_Strategy(Strategy):
       self.macd, self.macdsignal, self.macdhisyt = MACD_Cross.init(self)
     if 'SMA_Cross' in self.strategy_list_name:
       self.sma1 , self.sma2 = SMA_Cross.init(self)
+    if 'EMA_Cross' in self.strategy_list_name:
+      self.ema1 , self.ema2 = EMA_Cross.init(self)
     if 'RSI' in self.strategy_list_name:
       self.rsi = RSI.init(self)
     if 'BolingerBands' in self.strategy_list_name:
@@ -499,22 +528,99 @@ class Intersect_Strategy(Strategy):
 
     
   def next(self):
-    buy = True
-    sell = True
+    buy_condition = [strategy.buy_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
+    sell_condition = [strategy.sell_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
+    '''
     if 'MACD_Cross' in self.strategy_list_name:
       buy = buy and MACD_Cross.buy_condition(self)
       sell = sell and MACD_Cross.sell_condition(self)
     if 'SMA_Cross' in self.strategy_list_name:
       buy = buy and SMA_Cross.buy_condition(self)
       sell = sell and SMA_Cross.sell_condition(self)
+    if 'EMA_Cross' in self.strategy_list_name:
+      buy = buy and EMA_Cross.buy_condition(self)
+      sell = sell and EMA_Cross.sell_condition(self)
     if 'RSI' in self.strategy_list_name:
       buy = buy and RSI.buy_condition(self)
       sell = sell and RSI.sell_condition(self)
     if 'BolingerBands' in self.strategy_list_name:
       buy = buy and BolingerBands.buy_condition(self)
       sell = sell and BolingerBands.sell_condition(self)
+
+    if not self.short_pos:
+      if any(sell_condition):
+        close_opposite_dir_trade(self.trades,dir=0)
+        self.long_pos = False
+    else:
+      if all(sell_condition):
+        self.sell(size=self.param_size)
+        self.short_pos = True
+        self.long_pos = False
+    
+    if not self.long_pos:
+      if any(buy_condition):
+        close_opposite_dir_trade(self.trades,dir=0)
+        self.short_pos = False
+    else:
+      if all(buy_condition):
+        close_opposite_dir_trade(self.trades,dir=0)
+        self.buy(size=self.param_size)
+        self.short_pos = False
+
+    if buy and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if sell and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
+    '''
+    
+    if all(buy_condition) and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if all(sell_condition) and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
       
-    if buy:
-      self.buy()
-    elif sell:
-      self.sell()
+class Union(Strategy):
+  strategy_list_name = ['EMA_Cross','SMA_Cross','RSI','BolingerBands','MACD_Cross']
+  strategy_list = name2strategy(strategy_list_name)
+  long_pos = False
+  short_pos = False
+  exec(get_param_exec_str(strategy_list))
+  
+  def init(self):
+    if 'MACD_Cross' in self.strategy_list_name:
+      self.macd, self.macdsignal, self.macdhisyt = MACD_Cross.init(self)
+    if 'SMA_Cross' in self.strategy_list_name:
+      self.sma1 , self.sma2 = SMA_Cross.init(self)
+    if 'EMA_Cross' in self.strategy_list_name:
+      self.ema1 , self.ema2 = EMA_Cross.init(self)
+    if 'RSI' in self.strategy_list_name:
+      self.rsi = RSI.init(self)
+    if 'BolingerBands' in self.strategy_list_name:
+      self.upperband, self.middleband, self.lowerband = BolingerBands.init(self)
+
+    
+  def next(self):
+    buy_condition = [strategy.buy_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
+    sell_condition = [strategy.sell_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
+
+    if any(buy_condition) and not self.long_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.buy(size=self.param_size)
+      self.long_pos = True
+      self.short_pos = False
+    if any(sell_condition) and not self.short_pos:
+      close_opposite_dir_trade(self.trades,dir=0)
+      self.sell(size=self.param_size)
+      self.long_pos = False
+      self.short_pos = True
