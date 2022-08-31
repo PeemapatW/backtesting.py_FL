@@ -48,7 +48,8 @@ def opt_param_dict_to_eval_str(param_dict,constraint=''):
       hyper_param += 'constraint=lambda p: p.param_fastperiod < p.param_slowperiod,'
   return hyper_param[:-1]
 
-def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',test_interval=0,resolution='1d',plot=True,optimize=False,constraint='',exclusive_orders=False,optimize_method = 'grid',maximize = 'SQN'):
+def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',test_interval=0,resolution='1d',plot=True,
+                  cash=1000000, commission=.002,optimize=False,constraint='',exclusive_orders=False,optimize_method = 'grid',maximize = 'SQN'):
   if not (isinstance(start_date,str) or isinstance(start_date,datetime)) and not (isinstance(end_date,str) or isinstance(end_date,datetime)):
     raise ValueError("input date must be in str dd/mm/yy or in datetime format")
   if end_date == '' and test_interval == 0:
@@ -64,7 +65,7 @@ def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',tes
     data = get_data(ticker=ticker,start_date=start_date,end_date=end_date,interval=resolution).dropna()
     data.columns = [col_name.capitalize() for col_name in data.columns]
     data = data[data.Close!=0]
-    bt = Backtest(data, strategy,cash=1000000, commission=.002,exclusive_orders=exclusive_orders)
+    bt = Backtest(data, strategy,cash=cash, commission=commission,exclusive_orders=exclusive_orders)
     if not optimize:
       output = eval("bt.run("+param_dict_to_eval_str(param)+")")
     else:
