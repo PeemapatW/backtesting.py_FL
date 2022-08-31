@@ -77,7 +77,7 @@ def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',tes
         raise ValueError(f"Optimize method should be 'grid' or 'skopt', not {method!r}")
       '''
       eval_str = "bt.optimize("+opt_param_dict_to_eval_str(param,constraint)+",method=\""+optimize_method+"\",maximize=\""+maximize+"\",return_heatmap=True)"
-      print(eval_str)
+      #print(eval_str)
       output = eval(eval_str)
     if plot : bt.plot()
   except ValueError:
