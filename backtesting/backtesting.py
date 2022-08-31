@@ -1451,7 +1451,10 @@ class Backtest:
                 elif values.dtype.kind == 'f':
                     dimensions.append(Real(low=values.min(), high=values.max(), name=key))
                 else:
-                    dimensions.append(Categorical(values.tolist(), name=key, transform='onehot'))
+                    values_str = [str(v) for v in values]
+                    dimensions.append(Categorical(values_str, name=key, transform='onehot'))
+
+                    
 
             # Avoid recomputing re-evaluations:
             # "The objective has been evaluated at this point before."

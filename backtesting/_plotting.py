@@ -27,6 +27,7 @@ from bokeh.models import (
     DatetimeTickFormatter,
     WheelZoomTool,
     LinearColorMapper,
+    ColorBar
 )
 try:
     from bokeh.models import CustomJSTickFormatter
@@ -686,37 +687,43 @@ def plot_heatmaps(heatmap: pd.Series, agg: Union[Callable, str], ncols: int,
                              high=max(df.max().max() for df in dfs),
                              nan_color='white')
     for df in dfs:
-        name1, name2 = df.index.names
-        level1 = df.index.levels[0].astype(str).tolist()
-        level2 = df.index.levels[1].astype(str).tolist()
-        df = df.reset_index()
-        df[name1] = df[name1].astype('str')
-        df[name2] = df[name2].astype('str')
+        try:
+            name1, name2 = df.index.names
+            level1 = df.index.levels[0].astype(str).tolist()
+            level2 = df.index.levels[1].astype(str).tolist()
+            df = df.reset_index()
+            df[name1] = df[name1].astype('str')
+            df[name2] = df[name2].astype('str')
 
-        fig = _figure(x_range=level1,
-                      y_range=level2,
-                      x_axis_label=name1,
-                      y_axis_label=name2,
-                      width=plot_width // ncols,
-                      height=plot_width // ncols,
-                      tools='box_zoom,reset,save',
-                      tooltips=[(name1, '@' + name1),
-                                (name2, '@' + name2),
-                                ('Value', '@_Value{0.[000]}')])
-        fig.grid.grid_line_color = None
-        fig.axis.axis_line_color = None
-        fig.axis.major_tick_line_color = None
-        fig.axis.major_label_standoff = 0
+            fig = _figure(x_range=level1,
+                          y_range=level2,
+                          x_axis_label=name1,
+                          y_axis_label=name2,
+                          width=plot_width // ncols,
+                          height=plot_width // ncols,
+                          tools='box_zoom,reset,save',
+                          tooltips=[(name1, '@' + name1),
+                                    (name2, '@' + name2),
+                                    ('Value', '@_Value{0.[000]}')])
+            fig.grid.grid_line_color = None
+            fig.axis.axis_line_color = None
+            fig.axis.major_tick_line_color = None
+            fig.axis.major_label_standoff = 0
 
-        fig.rect(x=name1,
-                 y=name2,
-                 width=1,
-                 height=1,
-                 source=df,
-                 line_color=None,
-                 fill_color=dict(field='_Value',
-                                 transform=cmap))
-        plots.append(fig)
+            fig.rect(x=name1,
+                     y=name2,
+                     width=1,
+                     height=1,
+                     source=df,
+                     line_color=None,
+                     fill_color=dict(field='_Value',
+                                     transform=cmap))
+                                     
+            color_bar = ColorBar(color_mapper=cmap)
+            fig.add_layout(color_bar, 'right')
+            plots.append(fig)
+        except:
+          pass
 
     fig = gridplot(
         plots,

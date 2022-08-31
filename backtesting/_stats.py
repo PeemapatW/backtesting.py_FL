@@ -128,7 +128,13 @@ def compute_stats(
     # our risk doesn't; they use the simpler approach below.
     annualized_return = (1 + gmean_day_return)**annual_trading_days - 1
     s.loc['Return (Ann.) [%]'] = annualized_return * 100
-    s.loc['Volatility (Ann.) [%]'] = np.sqrt((day_returns.var(ddof=int(bool(day_returns.shape))) + (1 + gmean_day_return)**2)**annual_trading_days - (1 + gmean_day_return)**(2*annual_trading_days)) * 100  # noqa: E501
+    # Separate equation to 3 part for avoiding overflow
+    #s.loc['Volatility (Ann.) [%]'] = np.sqrt((day_returns.var(ddof=int(bool(day_returns.shape))) + (1 + gmean_day_return)**2)**annual_trading_days - (1 + gmean_day_return)**(2*annual_trading_days)) * 100  # noqa: E501
+    vol_a = day_returns.var(ddof=int(bool(day_returns.shape)))
+    vol_b = ((1 + gmean_day_return)**2)**annual_trading_days
+    vol_c = (1 + gmean_day_return)**(2*annual_trading_days)
+    s.loc['Volatility (Ann.) [%]'] = np.sqrt(vol_a+vol_b+vol_c) * 100
+    
     # s.loc['Return (Ann.) [%]'] = gmean_day_return * annual_trading_days * 100
     # s.loc['Risk (Ann.) [%]'] = day_returns.std(ddof=1) * np.sqrt(annual_trading_days) * 100
 
