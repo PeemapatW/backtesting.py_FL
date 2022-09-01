@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 from backtesting import Backtest, Strategy
 from yahoo_fin.stock_info import get_data
+import json
+import requests
 
 
 def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
@@ -28,6 +30,29 @@ def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY=
       read_data = pd.DataFrame([np.nan]*len(get_df[list(get_df.keys())[0]]),index=get_df[list(get_df.keys())[0]].index)
     get_df[metric] = read_data
   return get_df
+  
+def str_to_unix(strtime,format='%d/%m/%y %H:%M:%S'):
+  return int(time.mktime(datetime.datetime.strptime(strtime, format).timetuple()))
+
+def datetime_to_unix(date):
+  return int(time.mktime(date))
+    
+def get_ohlcv_glassnode_api(asset,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
+  if isinstance(start,str) and isinstance(end,str):
+    start = str_to_unix(start,format='yyyy/mm/dd %H:%M:%S')
+    end = str_to_unix(start,format='yyyy/mm/dd %H:%M:%S')
+  elif isinstance(start,datetime) and isinstance(end,datetime):
+    start = datetime_to_unix(start)
+    end = datetime_to_unix(end)
+  print(start,end)
+  params = {'a': asset, 's':start, 'u':end, 'i':resolution, 'api_key': API_KEY}
+  read_ohlc = pd.read_json(requests.get("https://api.glassnode.com/v1/metrics/market/price_usd_ohlc",params=params).text, convert_dates=['t']).set_index('t')
+  ohlc_df = pd.DataFrame([[data['c'],data['h'],data['l'],data['o']] for data in read_ohlc['o'].values],columns=['Close','High','Low','Open'],index=read_ohlc.index)
+  read_v = pd.read_json(requests.get("https://api.glassnode.com/v1/metrics/transactions/transfers_volume_sum",params=params).text, convert_dates=['t']).set_index('t')
+  read_v.columns = ['Volume']
+  data = pd.concat([ohlc_df,read_v],axis=1).dropna()
+  data = data[data.Close!=0]
+  return data
 
 def param_dict_to_eval_str(param_dict):
   hyper_param = ""
