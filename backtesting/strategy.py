@@ -15,34 +15,13 @@ def close_opposite_dir_trade(trade_list,dir):
  
 def get_trade_num(trade_list,dir):
   return len([1 for trade in trade_list if trade.size * dir > 0])
-  
-class HODL(Strategy):
-  name = 'HODL'
-  
-  def init(self):
-    pass
-    
-  def next(self):
-    if len(self.data.Close)==2:
-      self.buy()
-      
-class DCA(Strategy):
-  name = 'DCA'
-  param_day = 1
-  
-  def init(self):
-    pass
-    
-  def next(self):
-    day = self.data.index[-1].day
-    if day == self.param_day:
-      self.buy(size=0.1,tp=10000000000000000000)
 
 class SMA_Cross(Strategy):
   name = 'SMA_Cross'
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -59,17 +38,20 @@ class SMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       
 class EMA_Cross(Strategy):
   name = 'EMA_Cross'
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -86,11 +68,13 @@ class EMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       
 class EMA_Cross_3Line(Strategy):
   name = 'EMA_Cross_3Line'
@@ -98,6 +82,7 @@ class EMA_Cross_3Line(Strategy):
   param_period1 = 10
   param_period2 = 20
   param_period3 = 30
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -117,12 +102,14 @@ class EMA_Cross_3Line(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
 
@@ -133,6 +120,7 @@ class EMA_Cross_4Line(Strategy):
   param_period2 = 20
   param_period3 = 30
   param_period4 = 40
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -153,12 +141,14 @@ class EMA_Cross_4Line(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
 
@@ -167,6 +157,7 @@ class WMA_Cross(Strategy):
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -183,17 +174,20 @@ class WMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       
 class DEMA_Cross(Strategy):
   name = 'DEMA_Cross'
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -210,18 +204,20 @@ class DEMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       
 class TEMA_Cross(Strategy):
   name = 'TEMA_Cross'
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
-
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -238,17 +234,20 @@ class TEMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       
 class TRIMA_Cross(Strategy):
   name = 'TRIMA_Cross'
   param_size = 1-1e-10
   param_fastperiod = 10
   param_slowperiod = 20
+  param_directed = 0
   
   def init(self):
     close = self.data.Close
@@ -265,11 +264,13 @@ class TRIMA_Cross(Strategy):
   def next(self):
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
      
     if self.sell_condition():
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
 
 class RSI(Strategy):
   name = 'RSI'
@@ -278,6 +279,7 @@ class RSI(Strategy):
   param_overbought = 60
   param_oversold = 30
   param_delay = 1
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -297,12 +299,14 @@ class RSI(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
 
@@ -312,6 +316,7 @@ class MACD_Cross(Strategy):
   param_fastperiod = 12
   param_slowperiod = 26
   param_signalperiod = 9
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -329,12 +334,14 @@ class MACD_Cross(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
@@ -342,6 +349,7 @@ class BarUpDown(Strategy):
   name = "BarUpDown"
   param_size = 1-1e-10
   param_max_loss = 1
+  param_directed = 0
   pre_equity = np.nan
   long_pos = False
   short_pos = False
@@ -370,12 +378,14 @@ class BarUpDown(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
 
@@ -383,6 +393,7 @@ class ChannelBreakOut(Strategy):
   name = "ChannelBreakOut"
   param_size = 1-1e-10
   param_length = 5
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -402,18 +413,21 @@ class ChannelBreakOut(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
 class InsideBar(Strategy):
   name = "InsideBar"
   param_size = 1-1e-10
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -429,18 +443,21 @@ class InsideBar(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
 class OutsideBar(Strategy):
   name = "OutsideBar"
   param_size = 1-1e-10
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -456,12 +473,14 @@ class OutsideBar(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
@@ -469,6 +488,7 @@ class Momentum(Strategy):
   name = "InsideBar"
   param_size = 1-1e-10
   param_length = 12
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -487,7 +507,8 @@ class Momentum(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     #elif not self.buy_condition() and self.long_pos:
@@ -495,7 +516,8 @@ class Momentum(Strategy):
     #  self.long_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
     #elif not self.sell_condition() and self.short_pos:
@@ -507,6 +529,7 @@ class ConsecutiveUpDown(Strategy):
   param_size = 1-1e-10
   param_barsup = 3
   param_barsup = 3
+  param_directed = 0
   long_pos = False
   short_pos = False
   
@@ -532,12 +555,14 @@ class ConsecutiveUpDown(Strategy):
   def next(self):
     if self.buy_condition() and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
@@ -651,12 +676,14 @@ class Intersect(Strategy):
     
     if all(buy_condition) and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if all(sell_condition) and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True
       
@@ -686,11 +713,13 @@ class Union(Strategy):
 
     if any(buy_condition) and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
       self.long_pos = True
       self.short_pos = False
     if any(sell_condition) and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
       self.long_pos = False
       self.short_pos = True

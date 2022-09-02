@@ -1,5 +1,6 @@
 from datetime import datetime
 from time import mktime
+import time
 import inspect
 import pandas as pd
 import numpy as np
@@ -11,9 +12,9 @@ import requests
 
 def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
   if start != 0:
-    start = int(time.mktime(datetime.datetime.strptime(start, '%d/%m/%y %H:%M:%S').timetuple()))
+    start = int(time.mktime(datetime.datetime.strptime(start, '%d/%m/%Y %H:%M:%S').timetuple()))
   if end != 0:
-    end = int(time.mktime(datetime.datetime.strptime(end, '%d/%m/%y %H:%M:%S').timetuple()))
+    end = int(time.mktime(datetime.datetime.strptime(end, '%d/%m/%Y %H:%M:%S').timetuple()))
   
   params = {'a': asset, 's':start, 'u':end, 'i':resolution, 'api_key': API_KEY}
   api_url_dict = {'price':'https://api.glassnode.com/v1/metrics/market/price_usd_close',
@@ -31,20 +32,19 @@ def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY=
     get_df[metric] = read_data
   return get_df
   
-def str_to_unix(strtime,format='%d/%m/%y %H:%M:%S'):
-  return int(time.mktime(datetime.datetime.strptime(strtime, format).timetuple()))
+def str_to_unix(strtime,format='%Y/%m/%d %H:%M:%S'):
+  return int(time.mktime(datetime.strptime(strtime, format).timetuple()))
 
 def datetime_to_unix(date):
   return int(time.mktime(date))
     
 def get_ohlcv_glassnode_api(asset,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
   if isinstance(start,str) and isinstance(end,str):
-    start = str_to_unix(start,format='yyyy/mm/dd %H:%M:%S')
-    end = str_to_unix(start,format='yyyy/mm/dd %H:%M:%S')
+    start = str_to_unix(start,format='%Y/%m/%d %H:%M:%S')
+    end = str_to_unix(end,format='%Y/%m/%d %H:%M:%S')
   elif isinstance(start,datetime) and isinstance(end,datetime):
     start = datetime_to_unix(start)
     end = datetime_to_unix(end)
-  print(start,end)
   params = {'a': asset, 's':start, 'u':end, 'i':resolution, 'api_key': API_KEY}
   read_ohlc = pd.read_json(requests.get("https://api.glassnode.com/v1/metrics/market/price_usd_ohlc",params=params).text, convert_dates=['t']).set_index('t')
   ohlc_df = pd.DataFrame([[data['c'],data['h'],data['l'],data['o']] for data in read_ohlc['o'].values],columns=['Close','High','Low','Open'],index=read_ohlc.index)
@@ -73,38 +73,37 @@ def opt_param_dict_to_eval_str(param_dict,constraint=''):
       hyper_param += 'constraint=lambda p: p.param_fastperiod < p.param_slowperiod,'
   return hyper_param[:-1]
 
-def Test_Strategy(ticker,strategy,param={},start_date="01/01/18",end_date='',test_interval=0,resolution='1d',plot=True,source = 'yahoo',
+def Test_Strategy(ticker,strategy,param={},start_date="2010/01/01",end_date='',test_interval=0,resolution='1d',plot=True,source = 'yahoo',
                   cash=1000000, commission=.002,optimize=False,constraint='',exclusive_orders=False,optimize_method = 'grid',maximize = 'SQN'):
   if not (isinstance(start_date,str) or isinstance(start_date,datetime)) and not (isinstance(end_date,str) or isinstance(end_date,datetime)):
-    raise ValueError("input date must be in str dd/mm/yy or in datetime format")
+    raise ValueError("input date must be in str %Y/%m/%d or in datetime format")
   if end_date == '' and test_interval == 0:
     raise ValueError("must be atleast input end_date or test_interval")
   if isinstance(start_date,datetime):
-    start_date = start_date.strftime('%m/%d/%y')
+    start_date = start_date.strftime('%Y/%m/%d')
   if isinstance(end_date,datetime):
-    end_date = end_date.strftime('%m/%d/%y')
+    end_date = end_date.strftime('%Y/%m/%d')
   if test_interval > 0:
     resolustion_timestamp_dict = {'1d':86400}
-    end_date = datetime.fromtimestamp(mktime(datetime.strptime(start_date, '%m/%d/%y').timetuple()) + test_interval*resolustion_timestamp_dict[resolution]).strftime('%m/%d/%y')
+    end_date = datetime.fromtimestamp(mktime(datetime.strptime(start_date, '%m/%d/%Y').timetuple()) + test_interval*resolustion_timestamp_dict[resolution]).strftime('%m/%d/%Y')
+    
   try:
     if source == 'yahoo':
       data = get_data(ticker=ticker,start_date=start_date,end_date=end_date,interval=resolution).dropna()
       data.columns = [col_name.capitalize() for col_name in data.columns]
       data = data[data.Close!=0]
+    elif source == 'glassnode':
+      if resolution == '1d':
+        resolution = '24h'
+      data = get_ohlcv_glassnode_api(ticker,resolution=resolution,start=start_date,end=end_date)
+    else:
+      raise ValueError("Currently only support data source from 'yahoo' and 'glassnode")
+      
     bt = Backtest(data, strategy,cash=cash, commission=commission,exclusive_orders=exclusive_orders)
     if not optimize:
       output = eval("bt.run("+param_dict_to_eval_str(param)+")")
     else:
-      '''
-      if optimize_method == 'grid':
-        output = eval("bt.optimize("+opt_param_dict_to_eval_str(param,constraint)+',return_heatmap=True)')
-      elif optimize_method == 'skopt':
-        output = eval("bt.optimize("+opt_param_dict_to_eval_str(param,constraint)+',method="skopt",return_heatmap=True)')
-      else:
-        raise ValueError(f"Optimize method should be 'grid' or 'skopt', not {method!r}")
-      '''
       eval_str = "bt.optimize("+opt_param_dict_to_eval_str(param,constraint)+",method=\""+optimize_method+"\",maximize=\""+maximize+"\",return_heatmap=True)"
-      #print(eval_str)
       output = eval(eval_str)
     if plot : bt.plot()
   except ValueError:

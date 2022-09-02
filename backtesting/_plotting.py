@@ -123,7 +123,7 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
         warnings.warn(f"Data contains too many candlesticks to plot; downsampling to {freq!r}. "
                       "See `Backtest.plot(resample=...)`")
 
-    from .lib import OHLCV_AGG, TRADES_AGG, _EQUITY_AGG
+    from lib import OHLCV_AGG, TRADES_AGG, _EQUITY_AGG
     df = df.resample(freq, label='right').agg(OHLCV_AGG).dropna()
 
     indicators = [_Indicator(i.df.resample(freq, label='right').mean()
