@@ -15,6 +15,39 @@ def close_opposite_dir_trade(trade_list,dir):
  
 def get_trade_num(trade_list,dir):
   return len([1 for trade in trade_list if trade.size * dir > 0])
+  
+def dSMA(price,period=39):
+  sma = ta.SMA(price,period)
+  return (price-sma)/sma*100
+  
+class dSMA_Cross(Strategy):
+  name = 'dSMA_Cross'
+  param_size = 1-1e-10
+  param_period = 30
+  param_directed = 0
+  
+  def init(self):
+    close = self.data.Close
+    self.sma = self.I(ta.SMA, close, self.param_period)
+    self.dsma = self.I(dSMA, close, self.param_period)
+    return self.sma, self.dsma
+  
+  def buy_condition(self):
+    return crossover(self.dsma, 0)
+    
+  def sell_condition(self):
+    return crossover(0, self.dsma)
+  
+  def next(self):
+    if self.buy_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      if self.param_directed >= 0:
+        self.buy(size=self.param_size)
+     
+    if self.sell_condition():
+      close_opposite_dir_trade(self.trades,dir=0)
+      if self.param_directed <= 0:
+        self.sell(size=self.param_size)
 
 class SMA_Cross(Strategy):
   name = 'SMA_Cross'
@@ -593,12 +626,15 @@ class BolingerBands(Strategy):
       close_opposite_dir_trade(self.trades,dir=0)
       if self.param_directed >= 0:
         self.buy(size=self.param_size,stop=self.lowerband[-1])
+        #self.buy(size=self.param_size,sl=self.lowerband[-1])
       self.long_pos = True
       self.short_pos = False
+      
     if self.sell_condition() and not self.short_pos:
       close_opposite_dir_trade(self.trades,dir=0)
       if self.param_directed <= 0:
         self.sell(size=self.param_size,stop=self.upperband[-1])
+        #self.sell(size=self.param_size,sl=self.upperband[-1])
       self.long_pos = False
       self.short_pos = True
       

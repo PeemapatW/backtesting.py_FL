@@ -80,9 +80,12 @@ def Test_Strategy(ticker,strategy,param={},start_date="2010/01/01",end_date='',t
   if end_date == '' and test_interval == 0:
     raise ValueError("must be atleast input end_date or test_interval")
   if isinstance(start_date,datetime):
-    start_date = start_date.strftime('%Y/%m/%d')
+    start_date = start_date.strftime('%Y/%m/%d %H:%M:%S')
   if isinstance(end_date,datetime):
-    end_date = end_date.strftime('%Y/%m/%d')
+    end_date = end_date.strftime('%Y/%m/%d %H:%M:%S')
+  if source == 'yahoo':
+    start_date = datetime.strptime(start_date, '%Y/%m/%d %H:%M:%S').strftime('%m/%d/%Y')
+    end_date = datetime.strptime(end_date, '%Y/%m/%d %H:%M:%S').strftime('%m/%d/%Y')
   if test_interval > 0:
     resolustion_timestamp_dict = {'1d':86400}
     end_date = datetime.fromtimestamp(mktime(datetime.strptime(start_date, '%m/%d/%Y').timetuple()) + test_interval*resolustion_timestamp_dict[resolution]).strftime('%m/%d/%Y')
