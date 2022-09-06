@@ -1159,6 +1159,11 @@ class Backtest:
                 for attr, indicator in indicator_attrs:
                     # Slice indicator on the last dimension (case of 2d indicator)
                     setattr(strategy, attr, indicator[..., :i + 1])
+                if hasattr(strategy,'strategy_list'):
+                    for sub_strategy in strategy.strategy_list:
+                        for attr, indicator in eval('strategy.'+sub_strategy.name+'.indicator_attrs'):
+                            setattr(eval('strategy.'+sub_strategy.name), attr, indicator[..., :i + 1])
+                    
 
                 # Handle orders processing and broker stuff
                 try:

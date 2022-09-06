@@ -661,54 +661,6 @@ class Intersect(Strategy):
   def next(self):
     buy_condition = [strategy.buy_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
     sell_condition = [strategy.sell_condition(self) for strategy in self.strategy_list if strategy.name in self.strategy_list_name]
-    '''
-    if 'MACD_Cross' in self.strategy_list_name:
-      buy = buy and MACD_Cross.buy_condition(self)
-      sell = sell and MACD_Cross.sell_condition(self)
-    if 'SMA_Cross' in self.strategy_list_name:
-      buy = buy and SMA_Cross.buy_condition(self)
-      sell = sell and SMA_Cross.sell_condition(self)
-    if 'EMA_Cross' in self.strategy_list_name:
-      buy = buy and EMA_Cross.buy_condition(self)
-      sell = sell and EMA_Cross.sell_condition(self)
-    if 'RSI' in self.strategy_list_name:
-      buy = buy and RSI.buy_condition(self)
-      sell = sell and RSI.sell_condition(self)
-    if 'BolingerBands' in self.strategy_list_name:
-      buy = buy and BolingerBands.buy_condition(self)
-      sell = sell and BolingerBands.sell_condition(self)
-
-    if not self.short_pos:
-      if any(sell_condition):
-        close_opposite_dir_trade(self.trades,dir=0)
-        self.long_pos = False
-    else:
-      if all(sell_condition):
-        self.sell(size=self.param_size)
-        self.short_pos = True
-        self.long_pos = False
-    
-    if not self.long_pos:
-      if any(buy_condition):
-        close_opposite_dir_trade(self.trades,dir=0)
-        self.short_pos = False
-    else:
-      if all(buy_condition):
-        close_opposite_dir_trade(self.trades,dir=0)
-        self.buy(size=self.param_size)
-        self.short_pos = False
-
-    if buy and not self.long_pos:
-      close_opposite_dir_trade(self.trades,dir=0)
-      self.buy(size=self.param_size)
-      self.long_pos = True
-      self.short_pos = False
-    if sell and not self.short_pos:
-      close_opposite_dir_trade(self.trades,dir=0)
-      self.sell(size=self.param_size)
-      self.long_pos = False
-      self.short_pos = True
-    '''
     
     if all(buy_condition) and not self.long_pos:
       close_opposite_dir_trade(self.trades,dir=0)
