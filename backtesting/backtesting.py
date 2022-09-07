@@ -1160,9 +1160,10 @@ class Backtest:
                     # Slice indicator on the last dimension (case of 2d indicator)
                     setattr(strategy, attr, indicator[..., :i + 1])
                 if hasattr(strategy,'strategy_list'):
-                    for sub_strategy in strategy.strategy_list:
-                        for attr, indicator in eval('strategy.'+sub_strategy.name+'.indicator_attrs'):
-                            setattr(eval('strategy.'+sub_strategy.name), attr, indicator[..., :i + 1])
+                    for sub_strategy_ in list(zip(*strategy.strategy_list))[0]:
+                        sub_strategy = getattr(strategy,sub_strategy_.__name__)
+                        for attr, indicator in sub_strategy.indicator_attrs:
+                            setattr(sub_strategy, attr, indicator[..., :i + 1])
                     
 
                 # Handle orders processing and broker stuff
@@ -1345,24 +1346,45 @@ class Backtest:
             grid_frac = (1 if max_tries is None else
                          max_tries if 0 < max_tries <= 1 else
                          max_tries / _grid_size())
-            param_combos = [dict(params)  # back to dict so it pickles
-                            for params in (AttrDict(params)
-                                           for params in product(*(zip(repeat(k), _tuple(v))
-                                                                   for k, v in kwargs.items())))
-                            if constraint(params)  # type: ignore
-                            and rand() <= grid_frac]
+            if 'strategy_list' in kwargs.keys():
+                param_combos = []
+                for i in range(len(kwargs['strategy_list'])):
+                    strategy_param = kwargs['strategy_list'][i][1]
+                    strategy_name = kwargs['strategy_list'][i][0]
+                    strategy_param_combos = [dict(params)  # back to dict so it pickles
+                                              for params in (AttrDict(params)
+                                                             for params in product(*(zip(repeat(k), _tuple(v))
+                                                                                     for k, v in dict(strategy_param).items())))
+                                              if constraint(params)  # type: ignore
+                                              and rand() <= grid_frac]
+                    strategy_param_combos = [{'strategy_list':[[strategy_name,param]]} for param in strategy_param_combos]
+                    param_combos += strategy_param_combos
+            else:
+                param_combos = [dict(params)  # back to dict so it pickles
+                                for params in (AttrDict(params)
+                                               for params in product(*(zip(repeat(k), _tuple(v))
+                                                                       for k, v in kwargs.items())))
+                                if constraint(params)  # type: ignore
+                                and rand() <= grid_frac]
+
             if not param_combos:
                 raise ValueError('No admissible parameter combinations to test')
 
             if len(param_combos) > 300:
                 warnings.warn(f'Searching for best of {len(param_combos)} configurations.',
                               stacklevel=2)
-
-            heatmap = pd.Series(np.nan,
-                                name=maximize_key,
-                                index=pd.MultiIndex.from_tuples(
-                                    [p.values() for p in param_combos],
-                                    names=next(iter(param_combos)).keys()))
+            if 'strategy_list' in kwargs.keys():
+                heatmap = pd.Series(np.nan,
+                                    name=maximize_key,
+                                    index=pd.MultiIndex.from_tuples(
+                                        [p['strategy_list'][0][1].values() for p in param_combos],
+                                           names=list(next(iter(param_combos)).values())[0][0][1].keys()))
+            else:
+                heatmap = pd.Series(np.nan,
+                                    name=maximize_key,
+                                    index=pd.MultiIndex.from_tuples(
+                                        [p.values() for p in param_combos],
+                                        names=next(iter(param_combos)).keys()))
 
             def _batch(seq):
                 n = np.clip(int(len(seq) // (os.cpu_count() or 1)), 1, 300)
@@ -1408,7 +1430,10 @@ class Backtest:
                       for batch_index in range(len(param_batches)):
                           _, values = Backtest._mp_task(backtest_uuid, batch_index)
                           for value, params in zip(values, param_batches[batch_index]):
-                              heatmap[tuple(params.values())] = value
+                              if 'strategy_list' in kwargs.keys():
+                                  heatmap[tuple(params['strategy_list'][0][1].values())] = value
+                              else:
+                                  heatmap[tuple(params.values())] = value
             finally:
                 del Backtest._mp_backtests[backtest_uuid]
 
@@ -1419,7 +1444,13 @@ class Backtest:
                 # run so we get some, if empty, results
                 stats = self.run(**param_combos[0])
             else:
-                stats = self.run(**dict(zip(heatmap.index.names, best_params)))
+                if 'strategy_list' in kwargs.keys():
+                    best_params_ = kwargs
+                    best_params_['strategy_list'][0][1] = dict(zip(heatmap.index.names, best_params))
+                    #print(best_params_)
+                    stats = self.run(**best_params_)
+                else:
+                    stats = self.run(**dict(zip(heatmap.index.names, best_params)))
 
             if return_heatmap:
                 return stats, heatmap
