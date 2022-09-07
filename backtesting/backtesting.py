@@ -40,6 +40,8 @@ __pdoc__ = {
     'Trade.__init__': False,
 }
 
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 class Strategy(metaclass=ABCMeta):
     """
@@ -1347,18 +1349,24 @@ class Backtest:
                          max_tries if 0 < max_tries <= 1 else
                          max_tries / _grid_size())
             if 'strategy_list' in kwargs.keys():
-                param_combos = []
+                param_combos_ = []
+
                 for i in range(len(kwargs['strategy_list'])):
                     strategy_param = kwargs['strategy_list'][i][1]
                     strategy_name = kwargs['strategy_list'][i][0]
                     strategy_param_combos = [dict(params)  # back to dict so it pickles
                                               for params in (AttrDict(params)
                                                              for params in product(*(zip(repeat(k), _tuple(v))
-                                                                                     for k, v in dict(strategy_param).items())))
-                                              if constraint(params)  # type: ignore
-                                              and rand() <= grid_frac]
-                    strategy_param_combos = [{'strategy_list':[[strategy_name,param]]} for param in strategy_param_combos]
-                    param_combos += strategy_param_combos
+                                                                                     for k, v in dict(strategy_param).items())))]
+                    strategy_param_combos = [[[strategy_name,param]] for param in strategy_param_combos]
+                    param_combos_.append(strategy_param_combos)
+
+                param_combos = param_combos_[0]
+                for i in range(1,len(kwargs['strategy_list'])):
+                    param_combos = [flatten(p) for p in product(param_combos,param_combos_[i])]
+
+                param_combos = [{'strategy_list':p} for p in param_combos]
+                
             else:
                 param_combos = [dict(params)  # back to dict so it pickles
                                 for params in (AttrDict(params)
@@ -1374,11 +1382,14 @@ class Backtest:
                 warnings.warn(f'Searching for best of {len(param_combos)} configurations.',
                               stacklevel=2)
             if 'strategy_list' in kwargs.keys():
+                str_name = [list(next(iter(param_combos)).values())[0][i][0].__name__ for i in range(len(kwargs['strategy_list']))]
+                param_name = [list(list(next(iter(param_combos)).values())[0][i][1].keys()) for i in range(len(kwargs['strategy_list']))]
+                name = [str_name[i]+'-'+param_name[i][j] for i in range(len(str_name)) for j in range(len(param_name[i]))]
                 heatmap = pd.Series(np.nan,
                                     name=maximize_key,
                                     index=pd.MultiIndex.from_tuples(
-                                        [p['strategy_list'][0][1].values() for p in param_combos],
-                                           names=list(next(iter(param_combos)).values())[0][0][1].keys()))
+                                        [flatten([list(p['strategy_list'][i][1].values()) for i in range(len(kwargs['strategy_list']))]) for p in param_combos],
+                                           names=name))
             else:
                 heatmap = pd.Series(np.nan,
                                     name=maximize_key,
@@ -1445,9 +1456,15 @@ class Backtest:
                 stats = self.run(**param_combos[0])
             else:
                 if 'strategy_list' in kwargs.keys():
+                    params_size = [len(kwargs['strategy_list'][i][1]) for i in range(len(kwargs['strategy_list']))]
+                    best_param_list = [best_params[sum(params_size[:i]):sum(params_size[:i+1])] for i in range(len(params_size))]
+                    print(best_params)
                     best_params_ = kwargs
-                    best_params_['strategy_list'][0][1] = dict(zip(heatmap.index.names, best_params))
-                    #print(best_params_)
+                    print(kwargs)
+                    print(dict(zip([idx_name.split('-')[-1] for idx_name in heatmap.index.names], best_params)))
+                    for i in range(len(kwargs['strategy_list'])):
+                        best_params_['strategy_list'][i][1] = dict(zip([idx_name.split('-')[-1] for idx_name in heatmap.index.names], best_param_list[i]))
+                    print(best_params_)
                     stats = self.run(**best_params_)
                 else:
                     stats = self.run(**dict(zip(heatmap.index.names, best_params)))
