@@ -69,6 +69,8 @@ class SMA_Cross(Strategy):
     return crossover(self.sma2, self.sma1)
   
   def next(self):
+    next_(self)
+    '''
     if self.buy_condition():
       close_opposite_dir_trade(self.trades,dir=0)
       if self.directed >= 0:
@@ -78,6 +80,7 @@ class SMA_Cross(Strategy):
       close_opposite_dir_trade(self.trades,dir=0)
       if self.directed <= 0:
         self.sell(size=self.size)
+    '''
       
 class EMA_Cross(Strategy):
   name = 'EMA_Cross'
@@ -561,7 +564,7 @@ class ConsecutiveUpDown(Strategy):
   name = "ConsecutiveUpDown"
   size = 1-1e-10
   barsup = 3
-  barsup = 3
+  barsdn = 3
   directed = 0
   long_pos = False
   short_pos = False
@@ -580,7 +583,7 @@ class ConsecutiveUpDown(Strategy):
   def sell_condition(self):
     close = self.data.Close
     try:
-      consdown = np.all(close[-(self.barsup+1):-1] > close[-self.barsup:])
+      consdown = np.all(close[-(self.barsdn+1):-1] > close[-self.barsdn:])
     except:
       consdown = False
     return consdown

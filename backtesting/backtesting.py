@@ -191,6 +191,27 @@ class Strategy(metaclass=ABCMeta):
 
             super().next()
         """
+        
+    def next_(self):
+      if self.buy_condition():
+        if len(self.trades) > 0:
+          if all([t.size < 0 for t in self.trades]):
+            [t.close() for t in self.trades]
+            if self.directed >= 0:
+              self.buy(size=self.size)
+        else:
+           if self.directed >= 0:
+            self.buy(size=self.size)
+
+      if self.sell_condition():
+        if len(self.trades) > 0:
+          if all([t.size > 0 for t in self.trades]):
+            [t.close() for t in self.trades]
+            if self.directed <= 0:
+              self.sell(size=self.size)
+        else:
+          if self.directed <= 0:
+              self.sell(size=self.size)
 
     class __FULL_EQUITY(float):
         def __repr__(self): return '.9999'
@@ -1357,16 +1378,19 @@ class Backtest:
                     strategy_param_combos = [dict(params)  # back to dict so it pickles
                                               for params in (AttrDict(params)
                                                              for params in product(*(zip(repeat(k), _tuple(v))
-                                                                                     for k, v in dict(strategy_param).items())))]
+                                                                                     for k, v in dict(strategy_param).items())))
+                                             if constraint(params)  # type: ignore
+                                             and rand() <= grid_frac]
                     strategy_param_combos = [[[strategy_name,param]] for param in strategy_param_combos]
                     param_combos_.append(strategy_param_combos)
 
                 param_combos = param_combos_[0]
                 for i in range(1,len(kwargs['strategy_list'])):
                     param_combos = [flatten(p) for p in product(param_combos,param_combos_[i])]
-
+            
                 param_combos = [{'strategy_list':p} for p in param_combos]
-                
+                print(param_combos)
+
             else:
                 param_combos = [dict(params)  # back to dict so it pickles
                                 for params in (AttrDict(params)
@@ -1408,6 +1432,16 @@ class Backtest:
             # in a copy-on-write manner, achieving better performance/RAM benefit.
             backtest_uuid = np.random.random()
             param_batches = list(_batch(param_combos))
+            if 'strategy_list' in kwargs.keys():
+                all_params_batches = []
+                for params_batch in param_batches:
+                    all_params_batch = []
+                    for param in params_batch:
+                        all_param = copy(kwargs)
+                        all_param['strategy_list'] = param['strategy_list']
+                        all_params_batch.append(all_param)
+                    all_params_batches.append(copy(all_params_batch))
+                param_batches = all_params_batches
             Backtest._mp_backtests[backtest_uuid] = (self, param_batches, maximize)  # type: ignore
             try:
                 # If multiprocessing start method is 'fork' (i.e. on POSIX), use
@@ -1422,27 +1456,36 @@ class Backtest:
                                               desc='Backtest.optimize'):
                               batch_index, values = future.result()
                               for value, params in zip(values, param_batches[batch_index]):
-                                  heatmap[tuple(params.values())] = value
+                                  if 'strategy_list' in kwargs.keys():
+                                      heatmap[tuple(params['strategy_list'][0][1].values())] = value
+                                  else:
+                                      heatmap[tuple(params.values())] = value
                         else:
                           for future in as_completed(futures):
                               batch_index, values = future.result()
                               for value, params in zip(values, param_batches[batch_index]):
-                                  heatmap[tuple(params.values())] = value
+                                  if 'strategy_list' in kwargs.keys():
+                                      heatmap[tuple(params['strategy_list'][0][1].values())] = value
+                                  else:
+                                      heatmap[tuple(params.values())] = value
                 else:
                     if os.name == 'posix':
                         warnings.warn("For multiprocessing support in `Backtest.optimize()` "
                                       "set multiprocessing start method to 'fork'.")
                     if verbose:
                       for batch_index in _tqdm(range(len(param_batches))):
-                          _, values = Backtest._mp_task(backtest_uuid, batch_index)
-                          for value, params in zip(values, param_batches[batch_index]):
-                              heatmap[tuple(params.values())] = value
-                    else:
-                      for batch_index in range(len(param_batches)):
-                          _, values = Backtest._mp_task(backtest_uuid, batch_index)
+                          _, values = Backtest._mp_task(backtest_uuid, batch_index,**kwargs)
                           for value, params in zip(values, param_batches[batch_index]):
                               if 'strategy_list' in kwargs.keys():
                                   heatmap[tuple(params['strategy_list'][0][1].values())] = value
+                              else:
+                                  heatmap[tuple(params.values())] = value
+                    else:
+                      for batch_index in range(len(param_batches)):
+                          _, values = Backtest._mp_task(backtest_uuid, batch_index,**kwargs)
+                          for value, params in zip(values, param_batches[batch_index]):
+                              if 'strategy_list' in kwargs.keys():
+                                  heatmap[tuple(flatten([params['strategy_list'][i][1].values() for i in range(len(params['strategy_list']))]))] = value
                               else:
                                   heatmap[tuple(params.values())] = value
             finally:
@@ -1458,12 +1501,14 @@ class Backtest:
                 if 'strategy_list' in kwargs.keys():
                     params_size = [len(kwargs['strategy_list'][i][1]) for i in range(len(kwargs['strategy_list']))]
                     best_param_list = [best_params[sum(params_size[:i]):sum(params_size[:i+1])] for i in range(len(params_size))]
-                    print(best_params)
+                    index_list = [heatmap.index.names[sum(params_size[:i]):sum(params_size[:i+1])] for i in range(len(params_size))]
+                    #print(best_params)
                     best_params_ = kwargs
-                    print(kwargs)
-                    print(dict(zip([idx_name.split('-')[-1] for idx_name in heatmap.index.names], best_params)))
+                    #print(kwargs)
+                    #print(dict(zip([idx_name.split('-')[-1] for idx_name in heatmap.index.names], best_params)))
+                    #print(heatmap.index.names)
                     for i in range(len(kwargs['strategy_list'])):
-                        best_params_['strategy_list'][i][1] = dict(zip([idx_name.split('-')[-1] for idx_name in heatmap.index.names], best_param_list[i]))
+                        best_params_['strategy_list'][i][1] = dict(zip([idx_name.split('-')[-1] for idx_name in index_list[i]], best_param_list[i]))
                     print(best_params_)
                     stats = self.run(**best_params_)
                 else:
@@ -1569,7 +1614,7 @@ class Backtest:
 
             return stats if len(output) == 1 else tuple(output)
 
-        if method == 'grid':
+        if method == 'grid':      
             output = _optimize_grid()
         elif method == 'skopt':
             output = _optimize_skopt()
@@ -1578,7 +1623,7 @@ class Backtest:
         return output
 
     @staticmethod
-    def _mp_task(backtest_uuid, batch_index):
+    def _mp_task(backtest_uuid, batch_index,**kwargs):
         bt, param_batches, maximize_func = Backtest._mp_backtests[backtest_uuid]
         return batch_index, [maximize_func(stats) if stats['# Trades'] else np.nan
                              for stats in (bt.run(**params)
