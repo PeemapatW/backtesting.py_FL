@@ -101,7 +101,7 @@ def compute_stats(
     s.loc['Equity Final [$]'] = equity[-1]
     s.loc['Equity Peak [$]'] = equity.max()
     s.loc['Return [%]'] = (equity[-1] - equity[0]) / equity[0] * 100
-    s.loc['Log Return'] = np.log(equity[-1]/equity[0])
+    s.loc['Log Return'] = np.nan if not n_trades else np.log(equity[-1]/equity[0])
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
     s.loc['Buy & Hold Log Return'] = np.log(c[-1]/c[0])
