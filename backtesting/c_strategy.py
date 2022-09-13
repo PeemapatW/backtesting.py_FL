@@ -26,6 +26,8 @@ class CombiningStrategy(Strategy):
   condition = 'All'
   directed = 0
   size = 1-1e-10
+  stop_loss = 0
+  take_profit = 0
  
   def init(self):
     for strategy_, params in self.strategy_list:
@@ -39,6 +41,7 @@ class CombiningStrategy(Strategy):
         setattr(self, attr, self.I(lambda x:x,indicator,name=indicator.name))
       
   def next(self):
+    close = self.data.Close[-1]
     buy_condition = []
     sell_condition = []
     for strategy in list(zip(*self.strategy_list))[0]:
@@ -55,18 +58,35 @@ class CombiningStrategy(Strategy):
       func = all_open_any_close
     else:
       raise ValueError("Currently support only \"all\" or \"any\" condition")
-    
+
     if all([t.size < 0 for t in self.trades]): # Current set of trades is short or not hold any position
       if func(buy_condition,'close'):# If condition met for close current short position
         [t.close() for t in self.trades] # Close all of hold position
       if func(buy_condition,'open') and self.directed >= 0: # If condition met for open long position
-        self.buy(size=self.size) # Open long
+        if self.stop_loss != 0:
+          sl = close*(1-self.stop_loss)
+        else:
+          sl = None
+        if self.take_profit != 0:
+          tp = close*(1+self.take_profit)
+        else:
+          tp = None
+        self.buy(size=self.size,sl=sl,tp=tp) # Open long
+        
         
     if all([t.size > 0 for t in self.trades]):  # Current set of trades is long or not hold any position
       if func(sell_condition,'close'): # If condition met for close current long position
         [t.close() for t in self.trades] # Close all of hold position
       if func(sell_condition,'open') and self.directed <= 0: # If condition met for open short position
-        self.sell(size=self.size) # Open short
+        if self.stop_loss != 0:
+          sl = close*(1+self.stop_loss)
+        else:
+          sl = None
+        if self.take_profit != 0:
+          tp = close*(1-self.take_profit)
+        else:
+          tp = None
+        self.sell(size=self.size,sl=sl,tp=tp) # Open short
 
 '''
     if func(buy_condition):
