@@ -10,7 +10,7 @@ import json
 import requests
 
 
-def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
+def get_from_glassnode_api(asset,metrics,resolution='24h',start=0,end=0,API_KEY=''):
   if start != 0:
     start = int(time.mktime(datetime.datetime.strptime(start, '%d/%m/%Y %H:%M:%S').timetuple()))
   if end != 0:
@@ -38,7 +38,7 @@ def str_to_unix(strtime,format='%Y/%m/%d %H:%M:%S'):
 def datetime_to_unix(date):
   return int(time.mktime(date))
     
-def get_ohlcv_glassnode_api(asset,resolution='24h',start=0,end=0,API_KEY='2DTcBg9x0YgVPwieR9fybZAlGoA'):
+def get_ohlcv_glassnode_api(asset,resolution='24h',start=0,end=0,API_KEY=''):
   if isinstance(start,str) and isinstance(end,str):
     start = str_to_unix(start,format='%Y/%m/%d %H:%M:%S')
     end = str_to_unix(end,format='%Y/%m/%d %H:%M:%S')
