@@ -3,6 +3,7 @@ from typing import List, TYPE_CHECKING, Union
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+import statsmodels.api as sm
 
 from _util import _data_period
 
@@ -163,6 +164,23 @@ def compute_stats(
     s.loc['t_score for mean P&L > 0'] = t_pnl
     s.loc['p-value for mean P&L > 0'] = p_pnl
     s.loc['mean P&L > 0'] = s.loc['p-value for mean P&L > 0'] < alpha
+    cut_c = c[np.arange(0,len(c),30)]
+    cut_e = equity[np.arange(0,len(c),30)]
+    strategy_return = [(cut_e[i]-cut_e[i-1])/cut_e[i-1]*100 for i in range(1,len(cut_e))]
+    market_return = [(cut_c[i]-cut_c[i-1])/cut_c[i-1]*100 for i in range(1,len(cut_c))]
+    
+    Y = strategy_return
+    X = market_return
+    X = sm.add_constant(X)
+    reg = sm.OLS(Y,X)
+    reg_result = reg.fit()
+    alpha_hat, beta_hat = reg_result.params
+    conf_alpha_hat, conf_beta_hat = reg_result.conf_int()
+    p_alpha_hat, p_beta_hat = reg_result.pvalues
+    s.loc['Alpha hat'] = alpha_hat
+    s.loc['Confidence Interval of Alpha hat'] = conf_alpha_hat
+    s.loc['Alpha hat > 0'] = p_alpha_hat/2 < alpha #one-tailed pvalue from two-tailed pvalue
+     
     s.loc['Best Trade [%]'] = returns.max() * 100
     s.loc['Worst Trade [%]'] = returns.min() * 100
     mean_return = geometric_mean(returns)
