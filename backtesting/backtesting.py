@@ -29,7 +29,7 @@ except ImportError:
     def _tqdm(seq, **_):
         return seq
 
-from _plotting import plot
+from _plotting import plot, plot_intnode
 from _stats import compute_stats
 from _util import _as_str, _Indicator, _Data, try_
 
@@ -1637,7 +1637,7 @@ class Backtest:
              smooth_equity=False, relative_equity=True,
              superimpose: Union[bool, str] = True,
              resample=True, reverse_indicators=False,
-             show_legend=True, open_browser=True):
+             show_legend=True, open_browser=True, forintnode = False):
         """
         Plot the progression of the last backtest run.
 
@@ -1719,21 +1719,40 @@ class Backtest:
                 raise RuntimeError('First issue `backtest.run()` to obtain results.')
             results = self._results
 
-        return plot(
-            results=results,
-            df=self._data,
-            indicators=results._strategy._indicators,
-            filename=filename,
-            plot_width=plot_width,
-            plot_equity=plot_equity,
-            plot_return=plot_return,
-            plot_pl=plot_pl,
-            plot_volume=plot_volume,
-            plot_drawdown=plot_drawdown,
-            smooth_equity=smooth_equity,
-            relative_equity=relative_equity,
-            superimpose=superimpose,
-            resample=resample,
-            reverse_indicators=reverse_indicators,
-            show_legend=show_legend,
-            open_browser=open_browser)
+        if forintnode:
+            return plot_intnode(results=results,
+                df=self._data,
+                indicators=results._strategy._indicators,
+                filename=filename,
+                plot_width=plot_width,
+                plot_equity=False,
+                plot_return=True,
+                plot_pl=False,
+                plot_volume=False,
+                plot_drawdown=False,
+                smooth_equity=smooth_equity,
+                relative_equity=relative_equity,
+                superimpose=superimpose,
+                resample=resample,
+                reverse_indicators=reverse_indicators,
+                show_legend=False,
+                open_browser=open_browser)
+        else:
+            return plot(
+                results=results,
+                df=self._data,
+                indicators=results._strategy._indicators,
+                filename=filename,
+                plot_width=plot_width,
+                plot_equity=plot_equity,
+                plot_return=plot_return,
+                plot_pl=plot_pl,
+                plot_volume=plot_volume,
+                plot_drawdown=plot_drawdown,
+                smooth_equity=smooth_equity,
+                relative_equity=relative_equity,
+                superimpose=superimpose,
+                resample=resample,
+                reverse_indicators=reverse_indicators,
+                show_legend=show_legend,
+                open_browser=open_browser)
