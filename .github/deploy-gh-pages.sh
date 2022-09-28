@@ -20,7 +20,7 @@ sitemap() {
 
 head=$(git rev-parse HEAD)
 
-git clone -b gh-pages "https://kernc:$GH_PASSWORD@github.com/$GITHUB_REPOSITORY.git" gh-pages
+git clone -b gh-pages "https://AshitakaLax:$GH_PASSWORD@github.com/AshitakaLax/$GITHUB_REPOSITORY.git   gh-pages
 mkdir -p gh-pages/doc
 cp -R doc/build/* gh-pages/doc/
 cd gh-pages
