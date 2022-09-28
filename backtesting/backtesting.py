@@ -1233,8 +1233,24 @@ class Backtest:
         })
         trades_df['Duration'] = trades_df['ExitTime'] - trades_df['EntryTime']
         self._trade_tables = trades_df
+        self.select_chosen_report()
         return self._results
 
+    def select_chosen_report(self, report_name=['Return [%]', 'Return', 'Max. Drawdown [%]', 'Max. Drawdown',
+                                                '# Trades', '# Win',
+                                                'Short %', 'Long %', 'Win Rate [%]',
+                                                'Avg. Trade (Arithmetic) P&L',
+                                                'Avg. Profit (Arithmetic) P&L',
+                                                'Avg. Loss (Arithmetic) P&L',
+                                                'Alpha hat',
+                                                'Alpha hat > 0',
+                                                'Avg. Trade (Arithmetic) [%]',
+                                                'Avg. Profit (Arithmetic) [%]',
+                                                'Avg. Loss (Arithmetic) [%]', 
+                                                'Risk : Reward',
+                                                'Avg. Trade Duration', 'Profit Factor']):
+        self._key_results = self._results.loc[report_name]
+        
     def optimize(self, *,
                  maximize: Union[str, Callable[[pd.Series], float]] = 'SQN',
                  method: str = 'grid',

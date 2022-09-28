@@ -47,7 +47,9 @@ def compute_stats(
     
     index = ohlc_data.index
     dd = 1 - equity / np.maximum.accumulate(equity)
+    dd_equity = np.maximum.accumulate(equity) - equity
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
+    dd_dur_equity, dd_peaks_equity = compute_drawdown_duration_peaks(pd.Series(dd_equity, index=index))
 
     equity_df = pd.DataFrame({
         'Equity': equity,
@@ -73,14 +75,9 @@ def compute_stats(
         trades_df['Duration'] = trades_df['ExitTime'] - trades_df['EntryTime']
     del trades
     
-    #print(trades_df)
-    #print(equity_df)
 
 
     pl = trades_df['PnL']
-    #pl.hist()
-    #ks_statistic, p_value = stats.kstest(pl, 'norm')
-    #print(ks_statistic, p_value)
     returns = trades_df['ReturnPct']
     durations = trades_df['Duration']
 
@@ -103,7 +100,8 @@ def compute_stats(
     s.loc['Equity Final [$]'] = equity[-1]
     s.loc['Equity Peak [$]'] = equity.max()
     s.loc['Return [%]'] = (equity[-1] - equity[0]) / equity[0] * 100
-    s.loc['Log Return'] = np.log(equity[-1]/equity[0])
+    s.loc['Return'] = (equity[-1] - equity[0])
+    s.loc['Log Return'] = np.nan if equity[-1] == 0 else np.log(equity[-1]/equity[0])
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
     s.loc['Buy & Hold Log Return'] = np.log(c[-1]/c[0])
@@ -148,34 +146,58 @@ def compute_stats(
     # Our Sortino mismatches `empyrical.sortino_ratio()` because they use arithmetic mean return
     s.loc['Sortino Ratio'] = np.clip((annualized_return - risk_free_rate) / (np.sqrt(np.mean(day_returns.clip(-np.inf, 0)**2)) * np.sqrt(annual_trading_days)), 0, np.inf)  # noqa: E501
     max_dd = -np.nan_to_num(dd.max())
+    max_dd_equity = -dd_equity[dd.argmax()]
     s.loc['Calmar Ratio'] = np.clip(annualized_return / (-max_dd or np.nan), 0, np.inf)
     s.loc['Max. Drawdown [%]'] = max_dd * 100
+    s.loc['Max. Drawdown'] = max_dd_equity
     s.loc['Avg. Drawdown [%]'] = -dd_peaks.mean() * 100
+    s.loc['Avg. Drawdown'] = -dd_peaks_equity.mean()
     s.loc['Max. Drawdown Duration'] = _round_timedelta(dd_dur.max())  
     s.loc['Avg. Drawdown Duration'] = _round_timedelta(dd_dur.mean())
+
+    size = trades_df['Size']
     s.loc['# Trades'] = n_trades = len(trades_df)
+    s.loc['# Short'] = n_short = (size < 0).sum()
+    s.loc['# Long'] = n_long = (size > 0).sum()
+    s.loc['# Win'] = n_win = (pl > 0).sum()
+    s.loc['# Loss'] = n_loss = n_trades - n_win
+    s.loc['Short %'] = np.nan if not n_trades else n_short/n_trades*100
+    s.loc['Long %'] = np.nan if not n_trades else n_long/n_trades*100
+    
     s.loc['Win Rate [%]'] = np.nan if not n_trades else (pl > 0).sum() / n_trades * 100  # noqa: E501
     s.loc['p-value for Win Rate > 50%'] = np.nan if not n_trades else stats.binomtest((pl > 0).sum(),n_trades,p=0.5,alternative='greater').pvalue
     s.loc['Win Rate > 50%'] = np.nan if not n_trades else s.loc['p-value for Win Rate > 50%'] < alpha
-    s.loc['mean P&L'] = pl.mean()
+
+    s.loc['Best Trade P&L'] = pl.max()
+    s.loc['Worst Trade P&L'] = pl.min()
+    s.loc['Avg. Trade (Geometric) P&L'] = geometric_mean(pl)
+    s.loc['Avg. Trade (Arithmetic) P&L'] = np.mean(pl)
+    s.loc['Avg. Profit (Geometric) P&L'] = geometric_mean(pl[pl > 0]) * 100
+    s.loc['Avg. Profit (Arithmetic) P&L'] = np.mean(pl[pl > 0]) * 100
+    s.loc['Avg. Loss (Geometric) P&L'] = -geometric_mean(-pl[pl <= 0]) * 100
+    s.loc['Avg. Loss (Arithmetic) P&L'] = np.mean(pl[pl <= 0]) * 100
+
+
     if len(pl) > 1:
       t_pnl, p_pnl = stats.ttest_1samp(pl, 0,alternative='greater')    
     else:
       t_pnl, p_pnl = np.nan, np.nan
-    s.loc['t_score for mean P&L > 0'] = t_pnl
-    s.loc['p-value for mean P&L > 0'] = p_pnl
-    s.loc['mean P&L > 0'] = s.loc['p-value for mean P&L > 0'] < alpha
+    s.loc['t_score for Avg. Trade P&L > 0'] = t_pnl
+    s.loc['p-value for Avg. Trade P&L > 0'] = p_pnl
+    s.loc['Avg. Trade P&L > 0'] = s.loc['p-value for Avg. Trade P&L > 0'] < alpha
 
     resolution = index[1]-index[0]
     bar_per_month = int(timedelta(days=30)/resolution)
 
     cut_c = c[np.arange(0,len(c),bar_per_month)]
     cut_e = equity[np.arange(0,len(c),bar_per_month)]
-    strategy_return = [(cut_e[i]-cut_e[i-1])/cut_e[i-1]*100 for i in range(1,len(cut_e))]
-    market_return = [(cut_c[i]-cut_c[i-1])/cut_c[i-1]*100 for i in range(1,len(cut_c))]
+    strategy_return = np.array([(cut_e[i]-cut_e[i-1])/cut_e[i-1]*100 for i in range(1,len(cut_e))])
+    market_return = np.array([(cut_c[i]-cut_c[i-1])/cut_c[i-1]*100 for i in range(1,len(cut_c))])
     
-    Y = strategy_return
-    X = market_return
+    ## Capital Assets Pricing Model (CAPM)
+    ## Alpha = Return - risk_free_rate - beta(Market_return - risk_free_rate)
+    Y = strategy_return - risk_free_rate
+    X = market_return - risk_free_rate
     X = sm.add_constant(X)
     reg = sm.OLS(Y,X)
     reg_result = reg.fit()
@@ -189,7 +211,28 @@ def compute_stats(
     s.loc['Best Trade [%]'] = returns.max() * 100
     s.loc['Worst Trade [%]'] = returns.min() * 100
     mean_return = geometric_mean(returns)
-    s.loc['Avg. Trade [%]'] = mean_return * 100
+    s.loc['Avg. Trade (Geometric) [%]'] = mean_return * 100
+    s.loc['Avg. Trade (Arithmetic) [%]'] = np.mean(returns) * 100
+
+    s.loc['Avg. Profit (Geometric) [%]'] = geometric_mean(returns[returns >= 0]) * 100
+    s.loc['Avg. Profit (Arithmetic) [%]'] = np.mean(returns[returns >= 0]) * 100
+    s.loc['Avg. Loss (Geometric) [%]'] = -geometric_mean(-returns[returns < 0]) * 100
+    s.loc['Avg. Loss (Arithmetic) [%]'] = np.mean(returns[returns < 0]) * 100
+
+    if np.abs(s.loc['Avg. Profit (Arithmetic) [%]']) >= np.abs(s.loc['Avg. Loss (Arithmetic) [%]']):
+      risk = 1
+      reward = np.abs(s.loc['Avg. Profit (Arithmetic) [%]'] / s.loc['Avg. Loss (Arithmetic) [%]'])
+      reward = np.round(reward,1)
+      if reward.is_integer():
+        reward = int(reward)
+    else:
+      risk = np.abs(s.loc['Avg. Loss (Arithmetic) [%]'] / s.loc['Avg. Profit (Arithmetic) [%]'])
+      risk = np.round(risk,1)
+      if risk.is_integer():
+        risk = int(risk)
+      reward = 1
+    s.loc['Risk : Reward'] = str(risk) + ':' + str(reward)
+
     s.loc['Max. Trade Duration'] = _round_timedelta(durations.max())
     s.loc['Avg. Trade Duration'] = _round_timedelta(durations.mean())
     s.loc['Profit Factor'] = returns[returns > 0].sum() / (abs(returns[returns < 0].sum()) or np.nan)  # noqa: E501
